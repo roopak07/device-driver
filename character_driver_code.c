@@ -6,11 +6,29 @@
 #include <linux/poll.h>
 #include <linux/ioport.h>
 #include <linux/errno.h>
+#include <linux/sched.h>
 
 MODULE_AUTHOR("Roopak");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Sample charcter driver");
+static int mydev_open(struct inode *inode,struct file *file );
+static int mydev_read(struct file *file,static char *data,size_t size,loff_t * offset);
+static int mydev_write(struct file *file,const char *data,size_t size,loff_t * offset);
+static int mydev_close(struct inode *inode, struct file *file)
 
+
+wait_queue_head_t wq;
+init_waitqueue_head(&wq);
+/*Wait queue head can be initialized in the following ways
+Statically using :
+
+DECLARE_WAIT_QUEUE_HEAD(name);
+
+Dynamically using :
+
+
+wait_queue_head_t my_queue;
+init_waitqueue_head(name);*/
 
 typedef struct //insted we can write "struct mydev_t" and can define mydev as "struct mydev_t mydev"
 {
@@ -28,7 +46,7 @@ static struct file_operations mycdev_ops =
 .read	=	mydev_read,
 };
 
-
+/***************************** mydev_init ***********************************/
 int mydev_init(void)
 {
 int ret=0,res=0;
@@ -58,5 +76,60 @@ else
 printk("cdev added sucessfully :%d \n",res);
 }
 mydev.nchar = 0;
+return 0;
+}
+
+/***************************** mydev_open ***********************************/
+static int mydev_open(struct inode *inode,struct file *file ) // inode is pointer variable of type struct indoe , file is a pointer variable of type struct file , since mydev_open need to return 0 value to sys_open then sys_open will return fd to "open()" function in user space 
+{
+trymodule_get(THIS_MODULE);
+file->private_data=&mydev; // copying address of mydev in to file object private_data
+// checking weather the application is read mode or write mode , FMODE_WRITE is predefined macro of kernel
+if(file->&mode && FMODE_WRITE ) 
+	printk("<i>" "file opened in write mode");
+if(file->&mode && FMODE_READ ) 
+	printk("<i>" "file opened in read mode");
+return 0;
+}
+/***************************** mydev_read ***********************************/
+
+static int mydev_read(struct file *file,static char *data,size_t size,loff_t * offset)
+{
+mydev *t_dev;
+t_dev = file->private_data;
+wait_event(wq,t_dev->nchar>0);
+if(t_dev->nchar < size) // if in write function we are wrote 5 charcters and in read application is requesting for 20 chacrecters
+ {
+  size_t = t_dev-> nchar; // size_t will be no:of charcters in write function 
+ }
+  copy_to_user(data,t_dev->buf,size);
+  t_dev->nchar = 0;// once we copy data to user space then kernal buffer will be empty so weneedto make nchar = 0
+  printk("<i>" "read called \n");
+  return size;
+}
+
+/***************************** mydev_write ***********************************/
+static int mydev_write(struct file *file,const char *data,size_t size,loff_t * offset)// char data will store address of buf which is defined in user space,size will store lenth of the string in user sapce
+{
+int ret;
+mydev_t *t_dev; //t_dev is a pointer of type struct mydev_t, we can also write mydev *t_dev
+t_dev = file->private_data;
+if(size > 1024) // since our buffer size is 1024 ,if the incoming datais more than 1024 then we need to limit it to 1024 byte
+{
+size = 1024;
+}
+ret = copy_from_user(t_dev->buf, data, size ) // t_dev->buf is destination buffer base address ,data contains base address of source buffer, size will contain lenght of the string
+printk("no:of bytes not copied: %d \n",ret);
+t_dev->nchar=size;
+wakeup(&wq); // this will unblock wait_event in mydev_read
+printk("<i>" "write called \n");
+return size;
+}
+
+/***************************** mydev_close ***********************************/
+static int mydev_close(struct inode *inode, struct file *file)
+{
+module_put(THIS_MODULE);
+printk("<i>" "device closed \n");
 return 0;
 }
