@@ -52,7 +52,7 @@ int mydev_init(void)
 int ret=0,res=0;
 dev_t devno = 0; // devno is of type dev_t
 devno=MKDEV(42,0);
-ret=register_chrdev_region(devno,10,"mychardev");
+ret=register_chrdev_region(devno,10,"mychardev");// creating charcter driver region with device number
 printk("ret=%d\n",ret);
 if(ret<0)
 {
@@ -62,9 +62,9 @@ return 1; // driver gets off loaded form kernal space of RAM
 else
  printk("Register char dev region success %d\n",ret);
 
-cdev_init(&mydev.mycdev,&mycdev_ops); //mycdev.fops = &mycdev_ops
+cdev_init(&mydev.mycdev,&mycdev_ops); //mycdev.fops = &mycdev_ops , linking cdev object with file operations object
 mydev.mycdev.owner=THIS_MODULE;
-res = cdev_add(&mydev.mycdev,devno,1);// registering cdev object with kernel
+res = cdev_add(&mydev.mycdev,devno,1);// registering cdev object with kernel, linking cdev object with device number
 
 if(res) // if res = non zero value then its a fail ,so dergister cdev object
 {
