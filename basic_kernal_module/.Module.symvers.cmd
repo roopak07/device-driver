@@ -1,0 +1,1 @@
+cmd_/home/roopak/practice/basic_kernal_module/Module.symvers :=  scripts/mod/modpost -m -a     -o /home/roopak/practice/basic_kernal_module/Module.symvers -T /home/roopak/practice/basic_kernal_module/modules.order -i Module.symvers -e 
